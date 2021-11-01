@@ -4,7 +4,7 @@ import numpy as np
 
 class sydsap_tpf(lk.TessTargetPixelFile):
 
-	def sydsap(self,mask=None,threshold=3,dilation=1):
+	def sydsap(self,mask=None,threshold=3,dilation=1,break_tolerance=10):
 
 		if mask == None:
 			# Create new mask to use for simple aperture photometry
@@ -35,8 +35,22 @@ class sydsap_tpf(lk.TessTargetPixelFile):
 		# Only include time steps where flux error is ~Nan in regressors
 		regressors = regressors[~nantimes,:]
 
-		# Make design matrix from our regressors, taking 5 principal components, adding a constant
-		dm = lk.DesignMatrix(regressors, name = 'regressors').pca(5).append_constant()
+		# If regressors are being split, find where the gaps are
+		if break_tolerance != None:
+			dt = self.time.value[1:]-self.time.value[:-1]
+			
+			split_mask = dt > break_tolerance*np.nanmedian(dt)
+			split_index = np.argwhere(split_mask).T[0]
+
+			# Ensure gaps are not too small
+			split_index = np.append(split_index[:-1][split_index[1:]-split_index[:-1] > 10],split_index[-1]).tolist()
+
+			# Make design matrix from our regressors, taking 5 principal components, splitting, adding a constant
+			dm = lk.DesignMatrix(regressors, name = 'regressors').pca(5).split(split_index).append_constant()			
+
+		else:
+			# Make design matrix from our regressors, taking 5 principal components, adding a constant
+			dm = lk.DesignMatrix(regressors, name = 'regressors').pca(5).append_constant()
 
 		# Make corrector object
 		corrector = lk.RegressionCorrector(lc[~nantimes])
