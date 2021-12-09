@@ -4,9 +4,9 @@ import numpy as np
 
 class sydsap_tpf(lk.TessTargetPixelFile):
 
-	def sydsap(self,mask=None,threshold=3,dilation=1,break_tolerance=10):
+	def sydsap(self,mask="default",threshold=3,dilation=1,break_tolerance=10):
 
-		if mask == None:
+		if (isinstance(mask, str) and (mask == "default")):
 			# Create new mask to use for simple aperture photometry
 			mask = self.create_threshold_mask(threshold=threshold)
 			# Dilate mask to minimise aperture losses due to pointing jitter
@@ -29,8 +29,8 @@ class sydsap_tpf(lk.TessTargetPixelFile):
 		# Make regressors from outer pixels
 		regressors = self.flux[:,outpixels]
 
-		# Identify time steps where flux error is NaN
-		nantimes = np.isnan(lc.flux_err)
+		# Identify time steps where flux or flux error is NaN
+		nantimes = np.isnan(lc.flux_err) | np.isnan(lc.flux) | (np.sum(np.isnan(self.flux[:,~nanpixels]),axis=1) > 0)
 
 		# Only include time steps where flux error is ~Nan in regressors
 		regressors = regressors[~nantimes,:]
